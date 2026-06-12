@@ -65,6 +65,22 @@ export default function Dashboard() {
   const [values, setValues] = useState({});
   const [status, setStatus] = useState('');
   const [error, setError] = useState('');
+  const [pr, setPr] = useState(null);
+  const [prLoading, setPrLoading] = useState(false);
+  const [merging, setMerging] = useState(false);
+
+  async function refreshPr(tok) {
+    const useToken = tok || token;
+    if (!useToken) return;
+    setPrLoading(true);
+    try {
+      const r = await fetch('/api/pr-status', { headers: { 'x-admin-token': useToken } });
+      const d = await r.json();
+      if (r.ok) setPr(d.pr);
+    } finally {
+      setPrLoading(false);
+    }
+  }
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -74,6 +90,7 @@ export default function Dashboard() {
       return;
     }
     setToken(storedToken);
+    refreshPr(storedToken);
   }, [router]);
 
   useEffect(() => {
@@ -123,11 +140,35 @@ export default function Dashboard() {
 
     const data = await response.json();
     if (response.ok) {
-      setStatus('Saved successfully. The repo has been updated.');
+      const prBit = data.prUrl ? ` Queued in PR #${data.prNumber}.` : '';
+      setStatus(`Saved to draft branch.${prBit}`);
       setValues((current) => Object.fromEntries(Object.keys(current).map((key) => [key, ''])));
+      refreshPr();
     } else {
       setStatus('');
       setError(data.error || 'An error occurred while saving.');
+    }
+  }
+
+  async function handleMerge() {
+    if (!pr) return;
+    if (!window.confirm(`Merge PR #${pr.number} into main? This publishes the queued edits.`)) return;
+    setMerging(true);
+    setError('');
+    try {
+      const r = await fetch('/api/merge', {
+        method: 'POST',
+        headers: { 'x-admin-token': token },
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setStatus(`Merged PR #${d.prNumber}. GitHub Pages will rebuild shortly.`);
+        setPr(null);
+      } else {
+        setError(d.error || 'Merge failed.');
+      }
+    } finally {
+      setMerging(false);
     }
   }
 
@@ -149,6 +190,68 @@ export default function Dashboard() {
           Log out
         </button>
       </header>
+
+      <section style={{ marginBottom: '1.5rem', padding: '1rem 1.25rem', border: '1px solid #d0d7de', borderRadius: 8, background: '#fff' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+          <h2 style={{ margin: 0, fontSize: '1.1rem' }}>Pending changes</h2>
+          <button
+            onClick={() => refreshPr()}
+            disabled={prLoading}
+            style={{ padding: '0.4rem 0.75rem', background: '#eee', border: '1px solid #ccc', borderRadius: 6, cursor: 'pointer' }}
+          >
+            {prLoading ? 'Refreshing…' : 'Refresh'}
+          </button>
+        </div>
+        {!pr && !prLoading && (
+          <p style={{ margin: '0.75rem 0 0', color: '#555' }}>No pending changes. Saved edits will appear here as a pull request.</p>
+        )}
+        {pr && (
+          <div style={{ marginTop: '0.75rem' }}>
+            <p style={{ margin: '0 0 0.5rem' }}>
+              <a href={pr.url} target="_blank" rel="noreferrer"><strong>PR #{pr.number}</strong> — {pr.title}</a>
+            </p>
+            {pr.commits && pr.commits.length > 0 && (
+              <details style={{ marginBottom: '0.5rem' }}>
+                <summary>{pr.commits.length} queued commit{pr.commits.length === 1 ? '' : 's'}</summary>
+                <ul style={{ margin: '0.5rem 0 0 1.25rem' }}>
+                  {pr.commits.map((c) => (
+                    <li key={c.sha}><code>{c.sha}</code> {c.message}</li>
+                  ))}
+                </ul>
+              </details>
+            )}
+            <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
+              {pr.previewUrl ? (
+                <a
+                  href={pr.previewUrl}
+                  target="_blank"
+                  rel="noreferrer"
+                  style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}
+                >
+                  Open preview
+                </a>
+              ) : (
+                <span style={{ color: '#777', alignSelf: 'center' }}>Preview not ready yet.</span>
+              )}
+              <button
+                onClick={handleMerge}
+                disabled={merging}
+                style={{ padding: '0.5rem 0.9rem', background: '#1f883d', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
+              >
+                {merging ? 'Merging…' : 'Merge & publish'}
+              </button>
+              <a
+                href={pr.url}
+                target="_blank"
+                rel="noreferrer"
+                style={{ padding: '0.5rem 0.9rem', background: '#eee', border: '1px solid #ccc', borderRadius: 6, textDecoration: 'none', color: '#222' }}
+              >
+                View on GitHub
+              </a>
+            </div>
+          </div>
+        )}
+      </section>
 
       <label style={{ display: 'block', marginBottom: '1rem' }}>
         Select section
@@ -198,8 +301,9 @@ export default function Dashboard() {
       <section style={{ marginTop: '2rem', padding: '1.5rem', background: '#f8f9fb', borderRadius: 8 }}>
         <h2>Notes</h2>
         <ul>
-          <li>Your updates are committed directly to the repo branch configured in the app.</li>
-          <li>After a successful save, GitHub Pages will rebuild the site automatically.</li>
+          <li>Edits commit to a shared draft branch and are queued in a single open pull request.</li>
+          <li>Use the <strong>Open preview</strong> link to view the rendered Vercel preview of the PR before publishing.</li>
+          <li>Click <strong>Merge &amp; publish</strong> to merge the PR into <code>main</code>; GitHub Pages then rebuilds the live site.</li>
           <li>Publication fields are provided and will be converted to a YAML entry automatically—no raw YAML required.</li>
         </ul>
         <div style={{ marginTop: '1rem' }}>
