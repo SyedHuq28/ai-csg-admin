@@ -11,11 +11,11 @@ const sectionOptions = [
 
 const fieldDefinitions = {
   news: [
-    { name: 'date', label: 'Date', placeholder: '3 November, 2025', required: true },
+    { name: 'date', label: 'Date', type: 'datetime', required: true },
     { name: 'headline', label: 'Headline', placeholder: 'News headline with markdown support', required: true, type: 'textarea' },
   ],
   events: [
-    { name: 'date', label: 'Date', placeholder: '20 May, 2026', required: true },
+    { name: 'date', label: 'Date', type: 'datetime', required: true },
     { name: 'title', label: 'Title', placeholder: 'Event title', required: true },
     { name: 'type', label: 'Type', placeholder: 'seminar, workshop, conference, colloquium, other', required: true },
     { name: 'speaker', label: 'Speaker', placeholder: 'Speaker name(s)' },
@@ -24,7 +24,7 @@ const fieldDefinitions = {
     { name: 'description', label: 'Description', placeholder: 'Short event description', type: 'textarea' },
   ],
   talks: [
-    { name: 'date', label: 'Date', placeholder: '28 April, 2026', required: true },
+    { name: 'date', label: 'Date', type: 'datetime', required: true },
     { name: 'title', label: 'Title', placeholder: 'Talk title', required: true },
     { name: 'speaker', label: 'Speaker', placeholder: 'Speaker name', required: true },
     { name: 'affiliation', label: 'Affiliation', placeholder: 'Institution or company' },
@@ -39,8 +39,8 @@ const fieldDefinitions = {
     { name: 'amount', label: 'Amount', placeholder: '£520,000' },
     { name: 'pi', label: 'Principal investigator', placeholder: 'Prof. Tweyde', required: true },
     { name: 'co_investigators', label: 'Co-investigators', placeholder: 'Dr. Smith, Dr. Jones' },
-    { name: 'start_date', label: 'Start date', placeholder: '2024/01/01', required: true },
-    { name: 'end_date', label: 'End date', placeholder: '2027/03/31', required: true },
+    { name: 'start_date', label: 'Start date', type: 'date', required: true },
+    { name: 'end_date', label: 'End date', type: 'date', required: true },
     { name: 'status', label: 'Status', placeholder: 'active or completed', required: true },
     { name: 'description', label: 'Description', placeholder: 'Short project description', type: 'textarea' },
     { name: 'link', label: 'Link', placeholder: 'https://example.com' },
@@ -57,6 +57,25 @@ const fieldDefinitions = {
     { name: 'abstract', label: 'Abstract', placeholder: 'Short abstract (optional)', type: 'textarea' },
   ],
 };
+
+// Build a full ISO 8601 string with the local timezone offset (e.g. "2026-05-20T14:30:00+01:00").
+// `dateStr` is "YYYY-MM-DD" (from a date input); `timeStr` is "HH:MM" (from a time input) or empty.
+// With no time, returns the date-only "YYYY-MM-DD" so date-only entries stay unambiguous.
+function toIso(dateStr, timeStr) {
+  if (!dateStr) return '';
+  if (!timeStr) return dateStr;
+  const d = new Date(`${dateStr}T${timeStr}`);
+  if (Number.isNaN(d.getTime())) return dateStr;
+  const pad = (n) => String(n).padStart(2, '0');
+  const tzMin = -d.getTimezoneOffset();
+  const sign = tzMin >= 0 ? '+' : '-';
+  const abs = Math.abs(tzMin);
+  const offset = `${sign}${pad(Math.floor(abs / 60))}:${pad(abs % 60)}`;
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}${offset}`;
+}
+
+// key holding the optional time companion value for a datetime field
+const timeKey = (name) => `${name}__time`;
 
 export default function Dashboard() {
   const router = useRouter();
@@ -97,6 +116,7 @@ export default function Dashboard() {
     const initialValues = {};
     (fieldDefinitions[section] || []).forEach((field) => {
       initialValues[field.name] = '';
+      if (field.type === 'datetime') initialValues[timeKey(field.name)] = '';
     });
     setValues(initialValues);
     setStatus('');
@@ -114,19 +134,25 @@ export default function Dashboard() {
     setError('');
     setStatus('Saving...');
 
+    // Convert form values to stored values, resolving date/datetime fields to ISO 8601.
+    const built = {};
+    (fieldDefinitions[section] || []).forEach((field) => {
+      const raw = values[field.name];
+      if (field.type === 'datetime') {
+        const iso = toIso(raw, values[timeKey(field.name)]);
+        if (iso) built[field.name] = iso;
+      } else if (field.type === 'date') {
+        if (raw) built[field.name] = raw; // date input already yields "YYYY-MM-DD"
+      } else if (raw !== undefined && raw !== '') {
+        built[field.name] = raw;
+      }
+    });
+
     const payload = { section };
     if (section === 'publications') {
-      payload.publication = {};
-      Object.entries(values).forEach(([key, value]) => {
-        if (value !== '') payload.publication[key] = value;
-      });
+      payload.publication = built;
     } else {
-      payload.entry = {};
-      Object.entries(values).forEach(([key, value]) => {
-        if (value !== '') {
-          payload.entry[key] = value;
-        }
-      });
+      payload.entry = built;
     }
 
     const response = await fetch('/api/save', {
@@ -265,30 +291,69 @@ export default function Dashboard() {
       </label>
 
       <form onSubmit={handleSubmit} style={{ display: 'grid', gap: '1rem' }}>
-        {fieldDefinitions[section].map((field) => (
-          <label key={field.name} style={{ display: 'block' }}>
-            {field.label}
-            {field.type === 'textarea' ? (
+        {fieldDefinitions[section].map((field) => {
+          const inputStyle = { width: '100%', padding: '0.75rem', marginTop: '0.25rem' };
+          let control;
+          if (field.type === 'textarea') {
+            control = (
               <textarea
                 value={values[field.name] || ''}
                 placeholder={field.placeholder}
                 required={field.required}
                 onChange={(event) => handleInputChange(field.name, event.target.value)}
-                rows={field.type === 'textarea' ? 5 : 1}
-                style={{ width: '100%', padding: '0.75rem', marginTop: '0.25rem', fontFamily: 'inherit' }}
+                rows={5}
+                style={{ ...inputStyle, fontFamily: 'inherit' }}
               />
-            ) : (
+            );
+          } else if (field.type === 'date') {
+            control = (
+              <input
+                type="date"
+                value={values[field.name] || ''}
+                required={field.required}
+                onChange={(event) => handleInputChange(field.name, event.target.value)}
+                style={inputStyle}
+              />
+            );
+          } else if (field.type === 'datetime') {
+            control = (
+              <div style={{ display: 'flex', gap: '0.5rem', marginTop: '0.25rem' }}>
+                <input
+                  type="date"
+                  value={values[field.name] || ''}
+                  required={field.required}
+                  onChange={(event) => handleInputChange(field.name, event.target.value)}
+                  style={{ ...inputStyle, marginTop: 0, flex: 2 }}
+                />
+                <input
+                  type="time"
+                  value={values[timeKey(field.name)] || ''}
+                  aria-label={`${field.label} time (optional)`}
+                  onChange={(event) => handleInputChange(timeKey(field.name), event.target.value)}
+                  style={{ ...inputStyle, marginTop: 0, flex: 1 }}
+                />
+              </div>
+            );
+          } else {
+            control = (
               <input
                 type="text"
                 value={values[field.name] || ''}
                 placeholder={field.placeholder}
                 required={field.required}
                 onChange={(event) => handleInputChange(field.name, event.target.value)}
-                style={{ width: '100%', padding: '0.75rem', marginTop: '0.25rem' }}
+                style={inputStyle}
               />
-            )}
-          </label>
-        ))}
+            );
+          }
+          return (
+            <label key={field.name} style={{ display: 'block' }}>
+              {field.label}
+              {field.type === 'datetime' && <span style={{ color: '#777', fontWeight: 'normal' }}> (time optional)</span>}
+              {control}
+            </label>
+          );
+        })}
 
         <button type="submit" style={{ padding: '0.75rem', background: '#0070f3', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}>
           Save to GitHub
@@ -308,10 +373,11 @@ export default function Dashboard() {
         </ul>
         <div style={{ marginTop: '1rem' }}>
           <h3>Format instructions</h3>
-          <p><strong>News:</strong> provide a <em>date</em> like "3 November, 2025" and a <em>headline</em> (Markdown allowed).</p>
-          <p><strong>Events:</strong> use <em>date</em> "DD Month, YYYY", <em>type</em> (seminar/workshop/colloquium/etc.), optional speaker/location/link/description.</p>
-          <p><strong>Talks:</strong> use <em>date</em>, <em>title</em>, <em>speaker</em>, optional affiliation, abstract, slides_link, video_link, host.</p>
-          <p><strong>Grants:</strong> use ISO dates for start/end (YYYY/MM/DD), include <em>title</em>, <em>funder</em>, <em>pi</em>, and <em>status</em> (active/completed).</p>
+          <p>Dates use pickers and are stored as ISO 8601. Pick a date only for a date-only entry (<code>2026-05-20</code>); add a time and it is stored with the timezone offset (<code>2026-05-20T14:30:00+01:00</code>).</p>
+          <p><strong>News:</strong> pick a <em>date</em> (time optional) and a <em>headline</em> (Markdown allowed).</p>
+          <p><strong>Events:</strong> pick a <em>date</em> (time optional), set <em>type</em> (seminar/workshop/colloquium/etc.), optional speaker/location/link/description.</p>
+          <p><strong>Talks:</strong> pick a <em>date</em> (time optional), <em>title</em>, <em>speaker</em>, optional affiliation, abstract, slides_link, video_link, host.</p>
+          <p><strong>Grants:</strong> pick <em>start date</em> and <em>end date</em>, include <em>title</em>, <em>funder</em>, <em>pi</em>, and <em>status</em> (active/completed).</p>
           <p><strong>Publications:</strong> fill the form fields (title, authors, journal, year, volume, pages, doi, link, abstract); the app creates the YAML entry automatically.</p>
         </div>
       </section>
