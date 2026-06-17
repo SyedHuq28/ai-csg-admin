@@ -15,7 +15,7 @@ Updates are committed to a shared draft branch and queued in a single open pull 
 
 The app supports two repository layouts:
 - Single-repo mode: write edits and open PRs in the same repo.
-- Fork-preview mode: write edits to a repo you control, then open PRs back to the upstream site repo.
+- Workspace-preview mode: write edits, open PRs, and generate previews in a separate repo you control.
 
 ## Setup
 
@@ -34,17 +34,17 @@ npm install
 - `GITHUB_TOKEN` - GitHub personal access token used by the admin APIs
 - `GITHUB_REPO` - legacy single-repo mode, e.g. `aicentre-csg/aicentre-csg.github.io`
 - `GITHUB_WRITE_REPO` - repo where admin edits are committed, e.g. `SyedHuq28/ai-csg-admin-pr`
-- `GITHUB_TARGET_REPO` - repo where PRs are opened, e.g. `aicentre-csg/aicentre-csg.github.io`
+- `GITHUB_TARGET_REPO` - repo where PRs are opened, e.g. `SyedHuq28/ai-csg-admin-pr`
 - `GITHUB_PREVIEW_REPO` - optional repo to read Vercel deployment statuses from (defaults to `GITHUB_WRITE_REPO`)
 - `GITHUB_BRANCH` - base branch for PRs (default `main`)
 - `GITHUB_DRAFT_BRANCH` - shared draft branch for queued edits (default `admin-drafts`)
 - `VERCEL_PREVIEW_URL_TEMPLATE` - optional fallback preview URL shown before Vercel posts its deployment status
 
-For the proposed fork-preview workflow:
+For the independent workspace-preview workflow:
 
 ```env
 GITHUB_WRITE_REPO=SyedHuq28/ai-csg-admin-pr
-GITHUB_TARGET_REPO=aicentre-csg/aicentre-csg.github.io
+GITHUB_TARGET_REPO=SyedHuq28/ai-csg-admin-pr
 GITHUB_PREVIEW_REPO=SyedHuq28/ai-csg-admin-pr
 GITHUB_BRANCH=main
 GITHUB_DRAFT_BRANCH=admin-drafts
@@ -69,24 +69,24 @@ npm run dev
 1. Each save commits to the `GITHUB_DRAFT_BRANCH` branch (default `admin-drafts`) of `GITHUB_WRITE_REPO`.
 2. The first save opens a single PR against `GITHUB_TARGET_REPO`; subsequent saves append commits and a bullet to that PR body.
 3. Reviewers visit the Vercel preview URL shown in the dashboard's Pending changes panel to verify the rendered site.
-4. Click Merge & publish in the dashboard, or merge on GitHub. In fork-preview mode, merge only works if the token is allowed to merge PRs in the target repo.
+4. Click Merge & publish in the dashboard, or merge on GitHub, to merge the approved draft into the workspace repo's `main` branch.
 
 ## Vercel Preview Project
 
-For fork-preview mode, connect a separate Vercel project to `GITHUB_WRITE_REPO`:
+For workspace-preview mode, connect a separate Vercel project to `GITHUB_WRITE_REPO`:
 
 - Framework preset: Other
 - Install command: `bundle install`
 - Build command: `bundle exec jekyll build`
 - Output directory: `_site`
 
-The live site can continue to publish via GitHub Pages from `aicentre-csg/aicentre-csg.github.io`.
+The live site can continue to publish via GitHub Pages from `aicentre-csg/aicentre-csg.github.io`. The workspace repo is an independent staging area for admin edits and previews.
 
 ## GitHub Token Scope
 
-For fork-preview mode, `GITHUB_TOKEN` needs:
+For workspace-preview mode, `GITHUB_TOKEN` needs:
 
 - `contents:write` on `GITHUB_WRITE_REPO`
 - `pull_requests:write` on `GITHUB_TARGET_REPO`
 
-If the token cannot merge PRs in `GITHUB_TARGET_REPO`, the admin app can still queue PRs, but final publishing must be done by a maintainer in GitHub.
+If `GITHUB_WRITE_REPO` and `GITHUB_TARGET_REPO` are the same repo, these permissions only need to apply to that independent workspace repo.
