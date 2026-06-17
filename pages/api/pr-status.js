@@ -1,4 +1,4 @@
-import { getConfig, ghFetch, getOpenAdminPr, getPreviewUrl } from '../../lib/github';
+import { getCompareHead, getConfig, ghFetch, getOpenAdminPr, getPreviewUrl } from '../../lib/github';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
@@ -15,16 +15,16 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  const { githubToken, repo, baseBranch, draftBranch, previewTemplate } = cfg;
+  const { githubToken, writeRepo, targetRepo, previewRepo, baseBranch, draftBranch, previewTemplate } = cfg;
 
-  const pr = await getOpenAdminPr(githubToken, repo, draftBranch);
+  const pr = await getOpenAdminPr(githubToken, targetRepo, writeRepo, draftBranch);
   if (!pr) {
     return res.status(200).json({ pr: null });
   }
 
   const cmpRes = await ghFetch(
     githubToken,
-    `/repos/${repo}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(draftBranch)}`,
+    `/repos/${targetRepo}/compare/${encodeURIComponent(baseBranch)}...${encodeURIComponent(getCompareHead(writeRepo, targetRepo, draftBranch))}`,
   );
   let commits = [];
   let mergeable = pr.mergeable;
@@ -36,7 +36,7 @@ export default async function handler(req, res) {
     }));
   }
 
-  const previewUrl = await getPreviewUrl(githubToken, repo, draftBranch, previewTemplate);
+  const previewUrl = await getPreviewUrl(githubToken, previewRepo, draftBranch, previewTemplate);
 
   return res.status(200).json({
     pr: {

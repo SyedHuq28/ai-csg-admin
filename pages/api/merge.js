@@ -15,14 +15,14 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  const { githubToken, repo, draftBranch } = cfg;
+  const { githubToken, writeRepo, targetRepo, draftBranch } = cfg;
 
-  const pr = await getOpenAdminPr(githubToken, repo, draftBranch);
+  const pr = await getOpenAdminPr(githubToken, targetRepo, writeRepo, draftBranch);
   if (!pr) {
     return res.status(404).json({ error: 'No open admin PR to merge.' });
   }
 
-  const mergeRes = await ghFetch(githubToken, `/repos/${repo}/pulls/${pr.number}/merge`, {
+  const mergeRes = await ghFetch(githubToken, `/repos/${targetRepo}/pulls/${pr.number}/merge`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -35,7 +35,7 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: err.message || 'Merge failed.' });
   }
 
-  const delRes = await ghFetch(githubToken, `/repos/${repo}/git/refs/heads/${draftBranch}`, {
+  const delRes = await ghFetch(githubToken, `/repos/${writeRepo}/git/refs/heads/${draftBranch}`, {
     method: 'DELETE',
   });
   const branchDeleted = delRes.ok;

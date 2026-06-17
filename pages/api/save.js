@@ -45,7 +45,7 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  const { githubToken, repo, baseBranch, draftBranch, previewTemplate } = cfg;
+  const { githubToken, writeRepo, targetRepo, previewRepo, baseBranch, draftBranch, previewTemplate } = cfg;
 
   const { section, entry, publication } = req.body;
   const filePath = pathMap[section];
@@ -54,14 +54,14 @@ export default async function handler(req, res) {
   }
 
   try {
-    await ensureDraftBranch(githubToken, repo, baseBranch, draftBranch);
+    await ensureDraftBranch(githubToken, writeRepo, baseBranch, draftBranch);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 
   const fileRes = await ghFetch(
     githubToken,
-    `/repos/${repo}/contents/${filePath}?ref=${encodeURIComponent(draftBranch)}`,
+    `/repos/${writeRepo}/contents/${filePath}?ref=${encodeURIComponent(draftBranch)}`,
   );
   if (!fileRes.ok) {
     const err = await fileRes.json().catch(() => ({}));
@@ -93,7 +93,7 @@ export default async function handler(req, res) {
     updatedContent = header ? `${header}\n\n${dumped}` : dumped;
   }
 
-  const commitRes = await ghFetch(githubToken, `/repos/${repo}/contents/${filePath}`, {
+  const commitRes = await ghFetch(githubToken, `/repos/${writeRepo}/contents/${filePath}`, {
     method: 'PUT',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
@@ -110,12 +110,12 @@ export default async function handler(req, res) {
 
   let pr;
   try {
-    pr = await ensureOpenPr(githubToken, repo, baseBranch, draftBranch, section, req.body);
+    pr = await ensureOpenPr(githubToken, targetRepo, writeRepo, baseBranch, draftBranch, section, req.body);
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
 
-  const previewUrl = await getPreviewUrl(githubToken, repo, draftBranch, previewTemplate);
+  const previewUrl = await getPreviewUrl(githubToken, previewRepo, draftBranch, previewTemplate);
 
   return res.status(200).json({
     message: 'Saved to draft branch and queued in pull request.',
