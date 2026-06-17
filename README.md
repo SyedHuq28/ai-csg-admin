@@ -31,6 +31,9 @@ npm install
 - `ADMIN_USERNAME` - admin username for login
 - `ADMIN_PASSWORD` - admin password for login
 - `ADMIN_TOKEN` - secret token used by serverless APIs
+- `ADMIN_PR_USERNAME` - reviewer username for `/review`
+- `ADMIN_PR_PASSWORD` - reviewer password for `/review`
+- `ADMIN_PR_TOKEN` - secret token used by reviewer APIs
 - `GITHUB_TOKEN` - GitHub personal access token used by the admin APIs
 - `GITHUB_REPO` - legacy single-repo mode, e.g. `aicentre-csg/aicentre-csg.github.io`
 - `GITHUB_WRITE_REPO` - repo where admin edits are committed, e.g. `SyedHuq28/ai-csg-admin-pr`
@@ -57,6 +60,11 @@ npm run dev
 ```
 
 4. Deploy to Vercel by connecting the admin repo and setting the same environment variables.
+
+## URLs
+
+- Content admin: `/` and `/dashboard`
+- PR review: `/review`
 
 ## Notes
 
