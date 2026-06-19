@@ -1,4 +1,4 @@
-import { getConfig, ghFetch, getOpenAdminPr } from '../../lib/github';
+import { REVIEW_STATUS_CONFIRMED, getConfig, getReviewStatus, ghFetch, getOpenAdminPr } from '../../lib/github';
 
 export default async function handler(req, res) {
   if (req.method !== 'POST') {
@@ -20,6 +20,9 @@ export default async function handler(req, res) {
   const pr = await getOpenAdminPr(githubToken, targetRepo, writeRepo, draftBranch);
   if (!pr) {
     return res.status(404).json({ error: 'No open admin PR to merge.' });
+  }
+  if (getReviewStatus(pr) !== REVIEW_STATUS_CONFIRMED) {
+    return res.status(409).json({ error: 'Confirm pending changes before publishing.' });
   }
 
   const mergeRes = await ghFetch(githubToken, `/repos/${targetRepo}/pulls/${pr.number}/merge`, {

@@ -14,7 +14,7 @@ export default function ReviewPage() {
     setLoading(true);
     setError('');
     try {
-      const response = await fetch('/api/pr-status', {
+      const response = await fetch('/api/pr-status?view=review', {
         headers: { 'x-admin-token': nextToken },
       });
       const data = await response.json();
@@ -146,7 +146,7 @@ export default function ReviewPage() {
             )}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {pr.previewUrl && (
-                <a href={pr.previewUrl} target="_blank" rel="noreferrer" style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}>
+                <a href="/preview?view=review" style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}>
                   Open preview
                 </a>
               )}

@@ -1,11 +1,30 @@
-import { getCompareHead, getConfig, ghFetch, getOpenAdminPr, getPreviewUrl } from '../../lib/github';
+import {
+  REVIEW_STATUS_CONFIRMED,
+  getCompareHead,
+  getConfig,
+  getLatestQueuedSection,
+  getReviewStatus,
+  getSectionPreviewUrl,
+  ghFetch,
+  getOpenAdminPr,
+  getPreviewUrl,
+} from '../../lib/github';
 
 export default async function handler(req, res) {
   if (req.method !== 'GET') {
     return res.status(405).json({ error: 'Method not allowed' });
   }
   const token = req.headers['x-admin-token'];
-  if (!token || (token !== process.env.ADMIN_TOKEN && token !== process.env.ADMIN_PR_TOKEN)) {
+  const isAdmin = token && token === process.env.ADMIN_TOKEN;
+  const isReviewer = token && token === process.env.ADMIN_PR_TOKEN;
+  if (!token || (!isAdmin && !isReviewer)) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  const view = req.query.view === 'review' ? 'review' : 'dashboard';
+  if (view === 'dashboard' && !isAdmin) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  if (view === 'review' && !isReviewer && !isAdmin) {
     return res.status(401).json({ error: 'Unauthorized' });
   }
 
@@ -19,6 +38,14 @@ export default async function handler(req, res) {
 
   const pr = await getOpenAdminPr(githubToken, targetRepo, writeRepo, draftBranch);
   if (!pr) {
+    return res.status(200).json({ pr: null });
+  }
+
+  const reviewStatus = getReviewStatus(pr);
+  if (view === 'dashboard' && reviewStatus === REVIEW_STATUS_CONFIRMED) {
+    return res.status(200).json({ pr: null });
+  }
+  if (view === 'review' && reviewStatus !== REVIEW_STATUS_CONFIRMED) {
     return res.status(200).json({ pr: null });
   }
 
@@ -36,7 +63,9 @@ export default async function handler(req, res) {
     }));
   }
 
-  const previewUrl = await getPreviewUrl(githubToken, previewRepo, draftBranch, previewTemplate);
+  const latestSection = getLatestQueuedSection(pr.body);
+  const rawPreviewUrl = await getPreviewUrl(githubToken, previewRepo, draftBranch, previewTemplate);
+  const previewUrl = getSectionPreviewUrl(rawPreviewUrl, latestSection);
 
   return res.status(200).json({
     pr: {
@@ -44,9 +73,12 @@ export default async function handler(req, res) {
       title: pr.title,
       url: pr.html_url,
       body: pr.body || '',
+      reviewStatus,
       mergeable,
       commits,
+      latestSection,
       previewUrl,
+      rawPreviewUrl,
     },
   });
 }

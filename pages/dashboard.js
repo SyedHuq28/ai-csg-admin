@@ -6,7 +6,7 @@ const sectionOptions = [
   { value: 'events', label: 'Events' },
   { value: 'talks', label: 'Talks' },
   { value: 'grants', label: 'Grants' },
-  { value: 'publications', label: 'Publications (raw YAML)' },
+  { value: 'publications', label: 'Publications' },
 ];
 
 const fieldDefinitions = {
@@ -86,14 +86,14 @@ export default function Dashboard() {
   const [error, setError] = useState('');
   const [pr, setPr] = useState(null);
   const [prLoading, setPrLoading] = useState(false);
-  const [merging, setMerging] = useState(false);
+  const [actionLoading, setActionLoading] = useState('');
 
   async function refreshPr(tok) {
     const useToken = tok || token;
     if (!useToken) return;
     setPrLoading(true);
     try {
-      const r = await fetch('/api/pr-status', { headers: { 'x-admin-token': useToken } });
+      const r = await fetch('/api/pr-status?view=dashboard', { headers: { 'x-admin-token': useToken } });
       const d = await r.json();
       if (r.ok) setPr(d.pr);
     } finally {
@@ -176,25 +176,47 @@ export default function Dashboard() {
     }
   }
 
-  async function handleMerge() {
+  async function handleConfirm() {
     if (!pr) return;
-    if (!window.confirm(`Merge PR #${pr.number} into main? This publishes the queued edits.`)) return;
-    setMerging(true);
+    if (!window.confirm(`Confirm PR #${pr.number} and send it to review?`)) return;
+    setActionLoading('confirm');
     setError('');
     try {
-      const r = await fetch('/api/merge', {
+      const r = await fetch('/api/confirm', {
         method: 'POST',
         headers: { 'x-admin-token': token },
       });
       const d = await r.json();
       if (r.ok) {
-        setStatus(`Merged PR #${d.prNumber}. GitHub Pages will rebuild shortly.`);
+        setStatus(`Confirmed PR #${d.prNumber}. It is now waiting in the review dashboard.`);
         setPr(null);
       } else {
-        setError(d.error || 'Merge failed.');
+        setError(d.error || 'Confirm failed.');
       }
     } finally {
-      setMerging(false);
+      setActionLoading('');
+    }
+  }
+
+  async function handleCancel() {
+    if (!pr) return;
+    if (!window.confirm(`Cancel PR #${pr.number} and discard the queued edits?`)) return;
+    setActionLoading('cancel');
+    setError('');
+    try {
+      const r = await fetch('/api/reject', {
+        method: 'POST',
+        headers: { 'x-admin-token': token },
+      });
+      const d = await r.json();
+      if (r.ok) {
+        setStatus(`Cancelled PR #${d.prNumber}.`);
+        setPr(null);
+      } else {
+        setError(d.error || 'Cancel failed.');
+      }
+    } finally {
+      setActionLoading('');
     }
   }
 
@@ -225,7 +247,7 @@ export default function Dashboard() {
             disabled={prLoading}
             style={{ padding: '0.4rem 0.75rem', background: '#eee', border: '1px solid #ccc', borderRadius: 6, cursor: 'pointer' }}
           >
-            {prLoading ? 'Refreshing…' : 'Refresh'}
+            {prLoading ? 'Refreshing...' : 'Refresh'}
           </button>
         </div>
         {!pr && !prLoading && (
@@ -234,7 +256,7 @@ export default function Dashboard() {
         {pr && (
           <div style={{ marginTop: '0.75rem' }}>
             <p style={{ margin: '0 0 0.5rem' }}>
-              <a href={pr.url} target="_blank" rel="noreferrer"><strong>PR #{pr.number}</strong> — {pr.title}</a>
+              <strong>PR #{pr.number}</strong> - {pr.title}
             </p>
             {pr.commits && pr.commits.length > 0 && (
               <details style={{ marginBottom: '0.5rem' }}>
@@ -249,9 +271,7 @@ export default function Dashboard() {
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
               {pr.previewUrl ? (
                 <a
-                  href={pr.previewUrl}
-                  target="_blank"
-                  rel="noreferrer"
+                  href="/preview?view=dashboard"
                   style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}
                 >
                   Open preview
@@ -260,20 +280,19 @@ export default function Dashboard() {
                 <span style={{ color: '#777', alignSelf: 'center' }}>Preview not ready yet.</span>
               )}
               <button
-                onClick={handleMerge}
-                disabled={merging}
+                onClick={handleConfirm}
+                disabled={!!actionLoading}
                 style={{ padding: '0.5rem 0.9rem', background: '#1f883d', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
               >
-                {merging ? 'Merging…' : 'Merge & publish'}
+                {actionLoading === 'confirm' ? 'Confirming...' : 'Confirm'}
               </button>
-              <a
-                href={pr.url}
-                target="_blank"
-                rel="noreferrer"
-                style={{ padding: '0.5rem 0.9rem', background: '#eee', border: '1px solid #ccc', borderRadius: 6, textDecoration: 'none', color: '#222' }}
+              <button
+                onClick={handleCancel}
+                disabled={!!actionLoading}
+                style={{ padding: '0.5rem 0.9rem', background: '#cf222e', color: '#fff', border: 'none', borderRadius: 6, cursor: 'pointer' }}
               >
-                View on GitHub
-              </a>
+                {actionLoading === 'cancel' ? 'Cancelling...' : 'Cancel'}
+              </button>
             </div>
           </div>
         )}
@@ -367,9 +386,9 @@ export default function Dashboard() {
         <h2>Notes</h2>
         <ul>
           <li>Edits commit to a shared draft branch and are queued in a single open pull request.</li>
-          <li>Use the <strong>Open preview</strong> link to view the rendered Vercel preview of the PR before publishing.</li>
-          <li>Click <strong>Merge &amp; publish</strong> to merge the PR into <code>main</code>; GitHub Pages then rebuilds the live site.</li>
-          <li>Publication fields are provided and will be converted to a YAML entry automatically—no raw YAML required.</li>
+          <li>Use <strong>Open preview</strong> to view the rendered site preview inside the admin app.</li>
+          <li>Click <strong>Confirm</strong> to send the queued changes to the review dashboard, or <strong>Cancel</strong> to discard them.</li>
+          <li>Publication fields are provided and will be converted to a YAML entry automatically - no raw YAML required.</li>
         </ul>
         <div style={{ marginTop: '1rem' }}>
           <h3>Format instructions</h3>

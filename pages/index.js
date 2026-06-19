@@ -75,7 +75,7 @@ export default function LoginPage() {
           <li>Events</li>
           <li>Talks</li>
           <li>Grants</li>
-          <li>Publications (raw YAML entry)</li>
+          <li>Publications</li>
         </ul>
       </div>
     </div>

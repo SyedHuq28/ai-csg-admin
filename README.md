@@ -9,9 +9,9 @@ The app lets authorized users add entries to:
 - `_data/events.yml`
 - `_data/talks.yml`
 - `_data/grants.yml`
-- `_data/publist.yml` (publications, raw YAML input)
+- `_data/publist.yml` (publications)
 
-Updates are committed to a shared draft branch and queued in a single open pull request. A Vercel preview shows the rendered site before merge; the admin dashboard exposes the PR, the preview link, and a Merge button.
+Updates are committed to a shared draft branch and queued in a single open pull request. A Vercel preview shows the rendered site inside the admin app. Content admins confirm or cancel queued changes; confirmed changes then appear on the review dashboard for final approval.
 
 The app supports two repository layouts:
 - Single-repo mode: write edits and open PRs in the same repo.
@@ -68,7 +68,7 @@ npm run dev
 
 ## Notes
 
-- Publications entries should be submitted as raw YAML.
+- Publications use form fields and are converted to YAML automatically.
 - News, events, talks, and grants use the existing repo data formats.
 - This app is intentionally simple for shared access with a username/password.
 
@@ -76,8 +76,9 @@ npm run dev
 
 1. Each save commits to the `GITHUB_DRAFT_BRANCH` branch (default `admin-drafts`) of `GITHUB_WRITE_REPO`.
 2. The first save opens a single PR against `GITHUB_TARGET_REPO`; subsequent saves append commits and a bullet to that PR body.
-3. Reviewers visit the Vercel preview URL shown in the dashboard's Pending changes panel to verify the rendered site.
-4. Click Merge & publish in the dashboard, or merge on GitHub, to merge the approved draft into the workspace repo's `main` branch.
+3. The dashboard Pending changes panel shows an in-admin preview plus Confirm and Cancel.
+4. Confirm hides the queue from `/dashboard` and makes it visible on `/review`.
+5. Reviewers use `/review` to preview, approve and publish, reject, or open the PR on GitHub.
 
 ## Vercel Preview Project
 
