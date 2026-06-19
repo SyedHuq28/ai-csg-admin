@@ -269,16 +269,12 @@ export default function Dashboard() {
               </details>
             )}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {pr.previewUrl ? (
-                <a
-                  href="/preview?view=dashboard"
-                  style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}
-                >
-                  Open preview
-                </a>
-              ) : (
-                <span style={{ color: '#777', alignSelf: 'center' }}>Preview not ready yet.</span>
-              )}
+              <a
+                href="/preview?view=dashboard"
+                style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}
+              >
+                Open preview
+              </a>
               <button
                 onClick={handleConfirm}
                 disabled={!!actionLoading}
@@ -386,7 +382,7 @@ export default function Dashboard() {
         <h2>Notes</h2>
         <ul>
           <li>Edits commit to a shared draft branch and are queued in a single open pull request.</li>
-          <li>Use <strong>Open preview</strong> to view the rendered site preview inside the admin app.</li>
+          <li>Use <strong>Open preview</strong> to view the submitted entry in a simple organised format.</li>
           <li>Click <strong>Confirm</strong> to send the queued changes to the review dashboard, or <strong>Cancel</strong> to discard them.</li>
           <li>Publication fields are provided and will be converted to a YAML entry automatically - no raw YAML required.</li>
         </ul>

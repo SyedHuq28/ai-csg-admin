@@ -145,11 +145,9 @@ export default function ReviewPage() {
               </ul>
             )}
             <div style={{ display: 'flex', gap: '0.5rem', flexWrap: 'wrap' }}>
-              {pr.previewUrl && (
-                <a href="/preview?view=review" style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}>
-                  Open preview
-                </a>
-              )}
+              <a href="/preview?view=review" style={{ padding: '0.5rem 0.9rem', background: '#0070f3', color: '#fff', borderRadius: 6, textDecoration: 'none' }}>
+                Open preview
+              </a>
               <button
                 onClick={() => postDecision('/api/merge', `Approve and publish PR #${pr.number}?`, (data) => `Approved PR #${data.prNumber}. The live site will rebuild shortly.`)}
                 disabled={loading}

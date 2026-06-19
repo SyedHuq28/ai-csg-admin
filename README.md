@@ -11,7 +11,7 @@ The app lets authorized users add entries to:
 - `_data/grants.yml`
 - `_data/publist.yml` (publications)
 
-Updates are committed to a shared draft branch and queued in a single open pull request. A Vercel preview shows the rendered site inside the admin app. Content admins confirm or cancel queued changes; confirmed changes then appear on the review dashboard for final approval.
+Updates are committed to a shared draft branch and queued in a single open pull request. The admin app shows a simple formatted preview of the submitted entries. Content admins confirm or cancel queued changes; confirmed changes then appear on the review dashboard for final approval.
 
 The app supports two repository layouts:
 - Single-repo mode: write edits and open PRs in the same repo.
@@ -76,13 +76,13 @@ npm run dev
 
 1. Each save commits to the `GITHUB_DRAFT_BRANCH` branch (default `admin-drafts`) of `GITHUB_WRITE_REPO`.
 2. The first save opens a single PR against `GITHUB_TARGET_REPO`; subsequent saves append commits and a bullet to that PR body.
-3. The dashboard Pending changes panel shows an in-admin preview plus Confirm and Cancel.
+3. The dashboard Pending changes panel shows a simple entry preview plus Confirm and Cancel.
 4. Confirm hides the queue from `/dashboard` and makes it visible on `/review`.
 5. Reviewers use `/review` to preview, approve and publish, reject, or open the PR on GitHub.
 
-## Vercel Preview Project
+## Optional Vercel Preview Project
 
-For workspace-preview mode, connect a separate Vercel project to `GITHUB_WRITE_REPO`:
+The admin preview does not require a Vercel site preview. If you still want Vercel to build PR previews separately, connect a project to `GITHUB_WRITE_REPO`:
 
 - Framework preset: Other
 - Install command: `bundle install`

@@ -2,12 +2,10 @@ import {
   REVIEW_STATUS_CONFIRMED,
   getCompareHead,
   getConfig,
-  getLatestQueuedSection,
+  getPreviewEntries,
   getReviewStatus,
-  getSectionPreviewUrl,
   ghFetch,
   getOpenAdminPr,
-  getPreviewUrl,
 } from '../../lib/github';
 
 export default async function handler(req, res) {
@@ -34,7 +32,7 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  const { githubToken, writeRepo, targetRepo, previewRepo, baseBranch, draftBranch, previewTemplate } = cfg;
+  const { githubToken, writeRepo, targetRepo, baseBranch, draftBranch } = cfg;
 
   const pr = await getOpenAdminPr(githubToken, targetRepo, writeRepo, draftBranch);
   if (!pr) {
@@ -63,9 +61,7 @@ export default async function handler(req, res) {
     }));
   }
 
-  const latestSection = getLatestQueuedSection(pr.body);
-  const rawPreviewUrl = await getPreviewUrl(githubToken, previewRepo, draftBranch, previewTemplate);
-  const previewUrl = getSectionPreviewUrl(rawPreviewUrl, latestSection);
+  const previewEntries = getPreviewEntries(pr.body);
 
   return res.status(200).json({
     pr: {
@@ -76,9 +72,7 @@ export default async function handler(req, res) {
       reviewStatus,
       mergeable,
       commits,
-      latestSection,
-      previewUrl,
-      rawPreviewUrl,
+      previewEntries,
     },
   });
 }

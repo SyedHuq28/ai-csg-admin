@@ -4,7 +4,6 @@ import {
   ghFetch,
   ensureDraftBranch,
   ensureOpenPr,
-  getPreviewUrl,
 } from '../../lib/github';
 
 const pathMap = {
@@ -45,7 +44,7 @@ export default async function handler(req, res) {
   } catch (e) {
     return res.status(500).json({ error: e.message });
   }
-  const { githubToken, writeRepo, targetRepo, previewRepo, baseBranch, draftBranch, previewTemplate } = cfg;
+  const { githubToken, writeRepo, targetRepo, baseBranch, draftBranch } = cfg;
 
   const { section, entry, publication } = req.body;
   const filePath = pathMap[section];
@@ -115,12 +114,9 @@ export default async function handler(req, res) {
     return res.status(500).json({ error: e.message });
   }
 
-  const previewUrl = await getPreviewUrl(githubToken, previewRepo, draftBranch, previewTemplate);
-
   return res.status(200).json({
     message: 'Saved to draft branch and queued in pull request.',
     prUrl: pr?.html_url || null,
     prNumber: pr?.number || null,
-    previewUrl,
   });
 }
